@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>مشغل يوتيوب بمدة محددة</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f5f5f5;
+      text-align: center;
+      margin-top: 50px;
+      direction: rtl;
+    }
+    input {
+      width: 60%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      background: #ff0000;
+      color: white;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-left: 5px;
+    }
+    iframe {
+      margin-top: 30px;
+      width: 80%;
+      max-width: 800px;
+      height: 450px;
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    }
+    #overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.9);
+      color: white;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      font-size: 22px;
+      flex-direction: column;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <h2>🎬 مشغل يوتيوب (15 دقيقة لكل جلسة)</h2>
+  <p>ضع رابط الفيديو هنا:</p>
+  <input type="text" id="videoUrl" placeholder="مثلاً: https://www.youtube.com/watch?v=WlTsKiVwZAM" />
+  <button onclick="playVideo()">تشغيل</button>
+
+  <p id="timerText"></p>
+
+  <div id="playerContainer">
+    <iframe id="player" src="" allowfullscreen></iframe>
+  </div>
+
+  <div id="overlay">
+    <p>⏳ انتهى وقتك المخصص!</p>
+    <p id="cooldownText">يمكنك العودة بعد 45 دقيقة من آخر جلسة.</p>
+  </div>
+
+  <script>
+    const LIMIT_MINUTES = 15; // مدة الجلسة
+    const COOLDOWN_MINUTES = 45; // مدة الحظر
+
+    const overlay = document.getElementById("overlay");
+    const timerText = document.getElementById("timerText");
+    const cooldownText = document.getElementById("cooldownText");
+
+    function playVideo() {
+      if (overlay.style.display === "flex") return;
+      const url = document.getElementById("videoUrl").value.trim();
+      if (!url) return alert("يرجى إدخال رابط الفيديو!");
+
+      const match = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+      if (!match) return alert("الرابط غير صالح!");
+      const id = match[1];
+      document.getElementById("player").src = `https://www.youtube.com/embed/${id}`;
+    }
+
+    function blockAccess(untilTime) {
+      overlay.style.display = "flex";
+      document.getElementById("player").src = "";
+
+      function updateCountdown() {
+        const remaining = untilTime - Date.now();
+        if (remaining <= 0) {
+          overlay.style.display = "none";
+          timerText.textContent = "";
+          localStorage.removeItem("blockedUntil");
+        } else {
+          const mins = Math.floor(remaining / 60000);
+          const secs = Math.floor((remaining % 60000) / 1000);
+          const endDate = new Date(untilTime);
+          cooldownText.textContent = `الوقت المتبقي: ${mins}:${secs.toString().padStart(2,"0")} (يمكن العودة بعد ${endDate.getHours()}:${endDate.getMinutes().toString().padStart(2,"0")})`;
+          requestAnimationFrame(updateCountdown);
+        }
+      }
+      updateCountdown();
+    }
+
+    function startSession(existingEndTime = null) {
+      const endTime = existingEndTime || (Date.now() + LIMIT_MINUTES * 60 * 1000);
+      localStorage.setItem("endTime", endTime);
+
+      const timer = setInterval(() => {
+        const remaining = endTime - Date.now();
+        if (remaining <= 0) {
+          clearInterval(timer);
+          localStorage.removeItem("endTime");
+          const blockedUntil = Date.now() + COOLDOWN_MINUTES * 60 * 1000;
+          localStorage.setItem("blockedUntil", blockedUntil);
+          blockAccess(blockedUntil);
+        } else {
+          const mins = Math.floor(remaining / 60000);
+          const secs = Math.floor((remaining % 60000) / 1000);
+          timerText.textContent = `الوقت المتبقي للجلسة: ${mins}:${secs.toString().padStart(2,"0")}`;
+        }
+      }, 1000);
+    }
+
+    // عند تحميل الصفحة
+    const blockedUntil = localStorage.getItem("blockedUntil");
+    const savedEndTime = localStorage.getItem("endTime");
+
+    if (blockedUntil && Date.now() < blockedUntil) {
+      blockAccess(parseInt(blockedUntil));
+    } else if (savedEndTime && Date.now() < savedEndTime) {
+      startSession(parseInt(savedEndTime)); // استكمال الجلسة القديمة
+    } else {
+      localStorage.removeItem("endTime"); // تنظيف
+      startSession(); // بدء جلسة جديدة
+    }
+  </script>
+</body>
+</html>
