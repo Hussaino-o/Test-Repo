@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>مشغل يوتيوب بمدة محددة</title>
+  <title>🎬 مشغل يوتيوب بمدة محددة</title>
   <style>
     body {
       font-family: sans-serif;
@@ -56,7 +56,7 @@
 <body>
   <h2>🎬 مشغل يوتيوب (15 دقيقة لكل جلسة)</h2>
   <p>ضع رابط الفيديو هنا:</p>
-  <input type="text" id="videoUrl" placeholder="مثلاً: https://www.youtube.com/watch?v=WlTsKiVwZAM" />
+  <input type="text" id="videoUrl" placeholder="مثلاً: https://www.youtube.com/watch?v=2Vv-BfVoq4g" />
   <button onclick="playVideo()">تشغيل</button>
 
   <p id="timerText"></p>
@@ -77,6 +77,7 @@
     const overlay = document.getElementById("overlay");
     const timerText = document.getElementById("timerText");
     const cooldownText = document.getElementById("cooldownText");
+    const player = document.getElementById("player");
 
     function playVideo() {
       if (overlay.style.display === "flex") return;
@@ -86,12 +87,22 @@
       const match = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
       if (!match) return alert("الرابط غير صالح!");
       const id = match[1];
-      document.getElementById("player").src = `https://www.youtube.com/embed/${id}`;
+      const embedUrl = `https://www.youtube.com/embed/${id}?modestbranding=1&rel=0&autoplay=1`;
+
+      // التحقق من إمكانية التضمين
+      fetch(embedUrl, { mode: "no-cors" })
+        .then(() => {
+          player.src = embedUrl;
+          startSession();
+        })
+        .catch(() => {
+          alert("🚫 هذا الفيديو لا يمكن تشغيله داخل المشغل. يرجى تجربة رابط آخر.");
+        });
     }
 
     function blockAccess(untilTime) {
       overlay.style.display = "flex";
-      document.getElementById("player").src = "";
+      player.src = "";
 
       function updateCountdown() {
         const remaining = untilTime - Date.now();
@@ -103,7 +114,12 @@
           const mins = Math.floor(remaining / 60000);
           const secs = Math.floor((remaining % 60000) / 1000);
           const endDate = new Date(untilTime);
-          cooldownText.textContent = `الوقت المتبقي: ${mins}:${secs.toString().padStart(2,"0")} (يمكن العودة بعد ${endDate.getHours()}:${endDate.getMinutes().toString().padStart(2,"0")})`;
+          cooldownText.textContent = `الوقت المتبقي: ${mins}:${secs
+            .toString()
+            .padStart(2, "0")} (يمكن العودة بعد ${endDate.getHours()}:${endDate
+            .getMinutes()
+            .toString()
+            .padStart(2, "0")})`;
           requestAnimationFrame(updateCountdown);
         }
       }
@@ -111,7 +127,7 @@
     }
 
     function startSession(existingEndTime = null) {
-      const endTime = existingEndTime || (Date.now() + LIMIT_MINUTES * 60 * 1000);
+      const endTime = existingEndTime || Date.now() + LIMIT_MINUTES * 60 * 1000;
       localStorage.setItem("endTime", endTime);
 
       const timer = setInterval(() => {
@@ -125,7 +141,9 @@
         } else {
           const mins = Math.floor(remaining / 60000);
           const secs = Math.floor((remaining % 60000) / 1000);
-          timerText.textContent = `الوقت المتبقي للجلسة: ${mins}:${secs.toString().padStart(2,"0")}`;
+          timerText.textContent = `الوقت المتبقي للجلسة: ${mins}:${secs
+            .toString()
+            .padStart(2, "0")}`;
         }
       }, 1000);
     }
@@ -140,7 +158,6 @@
       startSession(parseInt(savedEndTime)); // استكمال الجلسة القديمة
     } else {
       localStorage.removeItem("endTime"); // تنظيف
-      startSession(); // بدء جلسة جديدة
     }
   </script>
 </body>
